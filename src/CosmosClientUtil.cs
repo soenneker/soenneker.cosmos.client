@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Soenneker.Cosmos.Client.Abstract;
 using Soenneker.Cosmos.Serializer;
 using Soenneker.Enums.DeployEnvironment;
+using Soenneker.Extensions.Configuration;
 using Soenneker.Utils.AsyncSingleton;
 using Soenneker.Utils.MemoryStream.Abstract;
 
@@ -103,20 +104,9 @@ public class CosmosClientUtil : ICosmosClientUtil
 
     private void SetConfiguration(IConfiguration config)
     {
-        _endpoint = config.GetValue<string>("Azure:Cosmos:Endpoint");
-
-        if (_endpoint == null)
-            throw new Exception("Azure:Cosmos:Endpoint is required");
-
-        _accountKey = config.GetValue<string>("Azure:Cosmos:AccountKey");
-
-        if (_accountKey == null)
-            throw new Exception("Azure:Cosmos:AccountKey is required");
-
-        _environment = config.GetValue<string>("Environment");
-
-        if (_environment == null)
-            throw new Exception("Environment is required");
+        _endpoint = config.GetValueStrict<string>("Azure:Cosmos:Endpoint");
+        _accountKey = config.GetValueStrict<string>("Azure:Cosmos:AccountKey");
+        _environment = config.GetValueStrict<string>("Environment");
 
         _requestResponseLog = config.GetValue<bool>("Azure:Cosmos:RequestResponseLog");
     }
