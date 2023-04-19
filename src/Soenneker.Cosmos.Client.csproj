@@ -54,6 +54,6 @@
 
         <PackageReference Include="Soenneker.Utils.AsyncSingleton" Version="1.0.9" />
 
-        <PackageReference Include="Soenneker.Utils.MemoryStream" Version="1.0.29" />
+        <PackageReference Include="Soenneker.Utils.MemoryStream" Version="1.0.31" />
     </ItemGroup>
 </Project>
