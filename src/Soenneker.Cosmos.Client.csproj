@@ -46,7 +46,7 @@
 
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
 
-        <PackageReference Include="Soenneker.Cosmos.Serializer" Version="1.0.166" />
+        <PackageReference Include="Soenneker.Cosmos.Serializer" Version="1.0.169" />
 
         <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="1.0.47" />
 
