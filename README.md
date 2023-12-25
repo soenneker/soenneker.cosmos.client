@@ -8,5 +8,5 @@
 ## Installation
 
 ```
-Install-Package Soenneker.Cosmos.Client
+dotnet add package Soenneker.Cosmos.Client
 ```
