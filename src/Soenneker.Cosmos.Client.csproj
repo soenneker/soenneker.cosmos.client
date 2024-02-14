@@ -46,7 +46,7 @@
 
         
 
-        <PackageReference Include="Soenneker.Cosmos.Serializer" Version="2.1.366" />
+        <PackageReference Include="Soenneker.Cosmos.Serializer" Version="2.1.367" />
 
         <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="2.1.116" />
 
