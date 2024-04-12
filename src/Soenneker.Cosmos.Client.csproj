@@ -50,7 +50,7 @@
 
         <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="2.1.122" />
 
-        <PackageReference Include="Soenneker.Extensions.Configuration" Version="2.1.252" />
+        <PackageReference Include="Soenneker.Extensions.Configuration" Version="2.1.253" />
 
         <PackageReference Include="Soenneker.Utils.AsyncSingleton" Version="2.1.226" />
     </ItemGroup>
