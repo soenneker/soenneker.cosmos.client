@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Soenneker.Cosmos.Client.Abstract;
+using Soenneker.Utils.MemoryStream.Registrars;
 
 namespace Soenneker.Cosmos.Client.Registrars;
 
@@ -9,11 +10,9 @@ namespace Soenneker.Cosmos.Client.Registrars;
 /// </summary>
 public static class CosmosClientUtilRegistrar
 {
-    /// <summary>
-    /// As Singleton
-    /// </summary>
-    public static void AddCosmosClientUtil(this IServiceCollection services)
+    public static void AddCosmosClientUtilAsSingleton(this IServiceCollection services)
     {
+        services.AddMemoryStreamUtil();
         services.TryAddSingleton<ICosmosClientUtil, CosmosClientUtil>();
     }
 }

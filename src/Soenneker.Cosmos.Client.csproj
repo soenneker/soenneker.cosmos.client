@@ -41,17 +41,10 @@
         <None Include="..\LICENSE" Pack="true" PackagePath="\" />
         <None Include="..\icon.png" Pack="true" PackagePath="\" />
         <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.38.1" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.1" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
-
-        
-
         <PackageReference Include="Soenneker.Cosmos.Serializer" Version="2.1.579" />
-
         <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="2.1.122" />
-
         <PackageReference Include="Soenneker.Extensions.Configuration" Version="2.1.254" />
-
         <PackageReference Include="Soenneker.Utils.AsyncSingleton" Version="2.1.228" />
     </ItemGroup>
 </Project>

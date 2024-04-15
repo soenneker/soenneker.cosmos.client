@@ -15,5 +15,5 @@ public interface ICosmosClientUtil : IDisposable, IAsyncDisposable
     /// Implements a double locking mechanism for thread-safety while initial setup is happening.
     /// </summary>
     [Pure]
-    ValueTask<CosmosClient> GetClient();
+    ValueTask<CosmosClient> Get();
 }

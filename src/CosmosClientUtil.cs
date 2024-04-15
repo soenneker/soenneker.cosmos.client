@@ -9,6 +9,7 @@ using Soenneker.Cosmos.Client.Abstract;
 using Soenneker.Cosmos.Serializer;
 using Soenneker.Enums.DeployEnvironment;
 using Soenneker.Extensions.Configuration;
+using Soenneker.Extensions.ValueTask;
 using Soenneker.Utils.AsyncSingleton;
 using Soenneker.Utils.MemoryStream.Abstract;
 
@@ -42,16 +43,18 @@ public class CosmosClientUtil : ICosmosClientUtil
 
     private void SetCosmosClientInitialization(IMemoryStreamUtil memoryStreamUtil)
     {
-        _client = new AsyncSingleton<CosmosClient>(() =>
+        _client = new AsyncSingleton<CosmosClient>(async () =>
         {
             _logger.LogInformation("Initializing Cosmos client using endpoint: {endpoint}", _endpoint);
+
+            HttpClient httpClient = await _httpClient!.Get().NoSync();
 
             // TODO: move to one serializer instance
             CosmosClientOptions clientOptions = new()
             {
                 ConnectionMode = GetConnectionMode(),
                 Serializer = new CosmosSystemTextJsonSerializer(memoryStreamUtil),
-                HttpClientFactory = _httpClient!.GetSync
+                HttpClientFactory = () => httpClient
             };
 
             var client = new CosmosClient(_endpoint, _accountKey, clientOptions);
@@ -107,11 +110,10 @@ public class CosmosClientUtil : ICosmosClientUtil
         _endpoint = config.GetValueStrict<string>("Azure:Cosmos:Endpoint");
         _accountKey = config.GetValueStrict<string>("Azure:Cosmos:AccountKey");
         _environment = config.GetValueStrict<string>("Environment");
-
         _requestResponseLog = config.GetValue<bool>("Azure:Cosmos:RequestResponseLog");
     }
 
-    public ValueTask<CosmosClient> GetClient()
+    public ValueTask<CosmosClient> Get()
     {
         return _client!.Get();
     }
@@ -157,11 +159,11 @@ public class CosmosClientUtil : ICosmosClientUtil
 
         _logger.LogDebug("-- COSMOS: Disposing...");
 
-        if (_httpClient != null)
-            await _httpClient.DisposeAsync();
-
         if (_client != null)
-            await _client.DisposeAsync();
+            await _client.DisposeAsync().NoSync();
+
+        if (_httpClient != null)
+            await _httpClient.DisposeAsync().NoSync();
     }
 
     public void Dispose()
@@ -178,7 +180,8 @@ public class CosmosClientUtil : ICosmosClientUtil
 
         _logger.LogDebug("-- COSMOS: Disposing...");
 
-        _httpClient?.Dispose();
         _client?.Dispose();
+
+        _httpClient?.Dispose();
     }
 }
