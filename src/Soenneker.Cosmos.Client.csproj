@@ -40,6 +40,6 @@
         <PackageReference Include="Soenneker.Cosmos.Serializer" Version="2.1.710" />
         <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="2.1.127" />
         <PackageReference Include="Soenneker.Extensions.Configuration" Version="2.1.299" />
-        <PackageReference Include="Soenneker.Utils.AsyncSingleton" Version="2.1.264" />
+        <PackageReference Include="Soenneker.Utils.AsyncSingleton" Version="2.1.265" />
     </ItemGroup>
 </Project>
