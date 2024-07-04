@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics.Contracts;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
 
@@ -15,5 +16,5 @@ public interface ICosmosClientUtil : IDisposable, IAsyncDisposable
     /// Implements a double locking mechanism for thread-safety while initial setup is happening.
     /// </summary>
     [Pure]
-    ValueTask<CosmosClient> Get();
+    ValueTask<CosmosClient> Get(CancellationToken cancellationToken = default);
 }

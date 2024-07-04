@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
@@ -43,11 +44,11 @@ public class CosmosClientUtil : ICosmosClientUtil
 
     private void SetCosmosClientInitialization(IMemoryStreamUtil memoryStreamUtil)
     {
-        _client = new AsyncSingleton<CosmosClient>(async () =>
+        _client = new AsyncSingleton<CosmosClient>(async (token, _) =>
         {
             _logger.LogInformation("Initializing Cosmos client using endpoint: {endpoint}", _endpoint);
 
-            HttpClient httpClient = await _httpClient!.Get().NoSync();
+            HttpClient httpClient = await _httpClient!.Get(token).NoSync();
 
             // TODO: move to one serializer instance
             CosmosClientOptions clientOptions = new()
@@ -113,9 +114,9 @@ public class CosmosClientUtil : ICosmosClientUtil
         _requestResponseLog = config.GetValue<bool>("Azure:Cosmos:RequestResponseLog");
     }
 
-    public ValueTask<CosmosClient> Get()
+    public ValueTask<CosmosClient> Get(CancellationToken cancellationToken = default)
     {
-        return _client!.Get();
+        return _client!.Get(cancellationToken);
     }
 
     private ConnectionMode GetConnectionMode()
@@ -153,8 +154,6 @@ public class CosmosClientUtil : ICosmosClientUtil
             return;
         }
 
-        GC.SuppressFinalize(this);
-
         _disposed = true;
 
         _logger.LogDebug("-- COSMOS: Disposing...");
@@ -164,6 +163,8 @@ public class CosmosClientUtil : ICosmosClientUtil
 
         if (_httpClient != null)
             await _httpClient.DisposeAsync().NoSync();
+
+        GC.SuppressFinalize(this);
     }
 
     public void Dispose()
@@ -174,8 +175,6 @@ public class CosmosClientUtil : ICosmosClientUtil
             return;
         }
 
-        GC.SuppressFinalize(this);
-
         _disposed = true;
 
         _logger.LogDebug("-- COSMOS: Disposing...");
@@ -183,5 +182,7 @@ public class CosmosClientUtil : ICosmosClientUtil
         _client?.Dispose();
 
         _httpClient?.Dispose();
+
+        GC.SuppressFinalize(this);
     }
 }
