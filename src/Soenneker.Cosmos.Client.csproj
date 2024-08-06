@@ -39,7 +39,7 @@
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
         <PackageReference Include="Soenneker.Cosmos.Serializer" Version="2.1.945" />
         <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="2.1.130" />
-        <PackageReference Include="Soenneker.Extensions.Configuration" Version="2.1.366" />
+        <PackageReference Include="Soenneker.Extensions.Configuration" Version="2.1.367" />
         <PackageReference Include="Soenneker.Utils.AsyncSingleton" Version="2.1.329" />
     </ItemGroup>
 </Project>
