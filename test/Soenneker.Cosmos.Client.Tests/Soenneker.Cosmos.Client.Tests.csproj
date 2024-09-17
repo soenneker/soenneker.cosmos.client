@@ -21,7 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\src\Soenneker.Cosmos.Client.csproj" />
+        <ProjectReference Include="..\..\src\Soenneker.Cosmos.Client.csproj" />
     </ItemGroup>
 
 </Project>
