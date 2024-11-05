@@ -12,6 +12,8 @@ using Soenneker.Enums.DeployEnvironment;
 using Soenneker.Extensions.Configuration;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Utils.AsyncSingleton;
+using Soenneker.Utils.HttpClientCache.Abstract;
+using Soenneker.Utils.HttpClientCache.Dtos;
 using Soenneker.Utils.MemoryStream.Abstract;
 
 namespace Soenneker.Cosmos.Client;
@@ -20,98 +22,83 @@ namespace Soenneker.Cosmos.Client;
 public class CosmosClientUtil : ICosmosClientUtil
 {
     private readonly ILogger<CosmosClientUtil> _logger;
+    private readonly IHttpClientCache _httpClientCache;
 
-    private AsyncSingleton<CosmosClient>? _client;
-    private AsyncSingleton<HttpClient>? _httpClient;
+    private readonly AsyncSingleton<CosmosClient>? _client;
 
-    private string? _endpoint;
-    private string? _accountKey;
-    private string? _environment;
-    private bool _requestResponseLog;
-
+    private readonly string? _environment;
+    private readonly bool _requestResponseLog;
+    private readonly bool _isTestEnvironment;
+    
     private bool _disposed;
 
-    public CosmosClientUtil(IConfiguration config, IMemoryStreamUtil memoryStreamUtil, ILogger<CosmosClientUtil> logger)
+    public CosmosClientUtil(IConfiguration config, IMemoryStreamUtil memoryStreamUtil, ILogger<CosmosClientUtil> logger, IHttpClientCache httpClientCache)
     {
         _logger = logger;
+        _httpClientCache = httpClientCache;
 
-        SetConfiguration(config);
+        var endpoint = config.GetValueStrict<string>("Azure:Cosmos:Endpoint");
+        var accountKey = config.GetValueStrict<string>("Azure:Cosmos:AccountKey");
+        _environment = config.GetValueStrict<string>("Environment");
+        _requestResponseLog = config.GetValue<bool>("Azure:Cosmos:RequestResponseLog");
+        _isTestEnvironment = _environment == DeployEnvironment.Local.Name || _environment == DeployEnvironment.Test.Name;
 
-        SetHttpClientInitialization();
-
-        SetCosmosClientInitialization(memoryStreamUtil);
-    }
-
-    private void SetCosmosClientInitialization(IMemoryStreamUtil memoryStreamUtil)
-    {
-        _client = new AsyncSingleton<CosmosClient>(async (token, _) =>
+        _client = new AsyncSingleton<CosmosClient>(async (cancellationToken, _) =>
         {
-            _logger.LogInformation("Initializing Cosmos client using endpoint: {endpoint}", _endpoint);
+            _logger.LogInformation("Initializing Cosmos client using endpoint: {endpoint}", endpoint);
 
-            HttpClient httpClient = await _httpClient!.Get(token).NoSync();
+            HttpClient httpClient = await GetHttpClient(cancellationToken).NoSync();
 
-            // TODO: move to one serializer instance
-            CosmosClientOptions clientOptions = new()
+            var clientOptions = new CosmosClientOptions
             {
                 ConnectionMode = GetConnectionMode(),
                 Serializer = new CosmosSystemTextJsonSerializer(memoryStreamUtil),
                 HttpClientFactory = () => httpClient
             };
 
-            var client = new CosmosClient(_endpoint, _accountKey, clientOptions);
+            var client = new CosmosClient(endpoint, accountKey, clientOptions);
 
             ConfigureRequestResponseLogging();
 
-            _logger.LogInformation("Finished initializing Cosmos client using endpoint: {endpoint}", _endpoint);
+            _logger.LogInformation("Finished initializing Cosmos client using endpoint: {endpoint}", endpoint);
 
             return client;
         });
     }
 
-    private void SetHttpClientInitialization()
+    private async ValueTask<HttpClient> GetHttpClient(CancellationToken cancellationToken)
     {
-        _httpClient = new AsyncSingleton<HttpClient>(() =>
+        HttpClientOptions httpClientOptions;
+
+        if (_isTestEnvironment)
         {
-            HttpClient httpClient;
+            _logger.LogWarning("Dangerously accepting any server certificate for Cosmos!");
 
-            if (_environment == DeployEnvironment.Local.Name || _environment == DeployEnvironment.Test.Name)
+            const int timeoutSecs = 120;
+
+            _logger.LogDebug("Setting timeout for Cosmos to {timeout}s", timeoutSecs);
+
+            var testHttpClientHandler = new HttpClientHandler
             {
-                _logger.LogWarning("Dangerously accepting any server certificate for Cosmos!");
+                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            };
 
-                const int timeoutSecs = 120;
-
-                _logger.LogDebug("Setting timeout for Cosmos to {timeout}s", timeoutSecs);
-
-                var testHttpClientHandler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-                };
-
-                httpClient = new HttpClient(testHttpClientHandler)
-                {
-                    Timeout = TimeSpan.FromSeconds(timeoutSecs)
-                };
-            }
-            else
+            httpClientOptions = new HttpClientOptions
             {
-                var socketsHandler = new SocketsHttpHandler
-                {
-                    PooledConnectionLifetime = TimeSpan.FromMinutes(10)
-                };
+                Timeout = TimeSpan.FromSeconds(timeoutSecs),
+                HttpClientHandler = testHttpClientHandler
+            };
+        }
+        else
+        {
+            httpClientOptions = new HttpClientOptions
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(10)
+            };
+        }
 
-                httpClient = new HttpClient(socketsHandler);
-            }
-
-            return httpClient;
-        });
-    }
-
-    private void SetConfiguration(IConfiguration config)
-    {
-        _endpoint = config.GetValueStrict<string>("Azure:Cosmos:Endpoint");
-        _accountKey = config.GetValueStrict<string>("Azure:Cosmos:AccountKey");
-        _environment = config.GetValueStrict<string>("Environment");
-        _requestResponseLog = config.GetValue<bool>("Azure:Cosmos:RequestResponseLog");
+        HttpClient httpClient = await _httpClientCache.Get(nameof(CosmosClientUtil), httpClientOptions, cancellationToken).NoSync();
+        return httpClient;
     }
 
     public ValueTask<CosmosClient> Get(CancellationToken cancellationToken = default)
@@ -126,7 +113,7 @@ public class CosmosClientUtil : ICosmosClientUtil
 
         return ConnectionMode.Direct;
     }
-    
+
     // https://github.com/Azure/azure-cosmos-dotnet-v3/issues/892
     private void ConfigureRequestResponseLogging()
     {
@@ -149,20 +136,14 @@ public class CosmosClientUtil : ICosmosClientUtil
     public async ValueTask DisposeAsync()
     {
         if (_disposed)
-        {
-            _logger.LogWarning("-- COSMOS: There was an attempt to re-dispose the Cosmos client!");
             return;
-        }
 
         _disposed = true;
-
-        _logger.LogDebug("-- COSMOS: Disposing...");
 
         if (_client != null)
             await _client.DisposeAsync().NoSync();
 
-        if (_httpClient != null)
-            await _httpClient.DisposeAsync().NoSync();
+        await _httpClientCache.Remove(nameof(CosmosClientUtil)).NoSync();
 
         GC.SuppressFinalize(this);
     }
@@ -170,18 +151,13 @@ public class CosmosClientUtil : ICosmosClientUtil
     public void Dispose()
     {
         if (_disposed)
-        {
-            _logger.LogWarning("-- COSMOS: There was an attempt to re-dispose the Cosmos client!");
             return;
-        }
 
         _disposed = true;
 
-        _logger.LogDebug("-- COSMOS: Disposing...");
-
         _client?.Dispose();
 
-        _httpClient?.Dispose();
+        _httpClientCache.RemoveSync(nameof(CosmosClientUtil));
 
         GC.SuppressFinalize(this);
     }
