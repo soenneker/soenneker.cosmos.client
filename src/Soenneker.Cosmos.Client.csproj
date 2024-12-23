@@ -42,6 +42,6 @@
         <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="3.0.149" />
         <PackageReference Include="Soenneker.Extensions.Configuration" Version="3.0.574" />
         <PackageReference Include="Soenneker.Utils.AsyncSingleton" Version="3.0.525" />
-        <PackageReference Include="Soenneker.Utils.HttpClientCache" Version="3.0.1177" />
+        <PackageReference Include="Soenneker.Utils.HttpClientCache" Version="3.0.1184" />
     </ItemGroup>
 </Project>
