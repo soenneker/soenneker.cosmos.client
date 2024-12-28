@@ -38,7 +38,7 @@
         <None Include="..\icon.png" Pack="true" PackagePath="\" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
 
-        <PackageReference Include="Soenneker.Cosmos.Serializer" Version="3.0.1717" />
+        <PackageReference Include="Soenneker.Cosmos.Serializer" Version="3.0.1719" />
         <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="3.0.152" />
         <PackageReference Include="Soenneker.Extensions.Configuration" Version="3.0.579" />
         <PackageReference Include="Soenneker.Utils.AsyncSingleton" Version="3.0.534" />
