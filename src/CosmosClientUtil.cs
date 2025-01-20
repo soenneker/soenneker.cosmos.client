@@ -46,7 +46,7 @@ public class CosmosClientUtil : ICosmosClientUtil
         _connectionMode = config.GetValue<string>("Azure:Cosmos:ConnectionMode");
 
         if (_connectionMode.IsNullOrEmpty())
-            _connectionMode = "Gateway";
+            _connectionMode = "Direct";
 
         _isTestEnvironment = _environment == DeployEnvironment.Local.Name || _environment == DeployEnvironment.Test.Name;
 
@@ -115,10 +115,12 @@ public class CosmosClientUtil : ICosmosClientUtil
 
     private ConnectionMode GetConnectionMode()
     {
-        if (_connectionMode == "Gateway")
-            return ConnectionMode.Gateway;
-
-        return ConnectionMode.Direct;
+        return _connectionMode switch
+        {
+            "Direct" => ConnectionMode.Direct,
+            "Gateway" => ConnectionMode.Gateway,
+            _ => throw new Exception("Invalid Azure Cosmos connection mode specified")
+        };
     }
 
     // https://github.com/Azure/azure-cosmos-dotnet-v3/issues/892
