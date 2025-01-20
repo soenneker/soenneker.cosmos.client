@@ -10,6 +10,7 @@ using Soenneker.Cosmos.Client.Abstract;
 using Soenneker.Cosmos.Serializer;
 using Soenneker.Enums.DeployEnvironment;
 using Soenneker.Extensions.Configuration;
+using Soenneker.Extensions.String;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Utils.AsyncSingleton;
 using Soenneker.Utils.HttpClientCache.Abstract;
@@ -29,7 +30,8 @@ public class CosmosClientUtil : ICosmosClientUtil
     private readonly string? _environment;
     private readonly bool _requestResponseLog;
     private readonly bool _isTestEnvironment;
-    
+    private readonly string? _connectionMode;
+
     private bool _disposed;
 
     public CosmosClientUtil(IConfiguration config, IMemoryStreamUtil memoryStreamUtil, ILogger<CosmosClientUtil> logger, IHttpClientCache httpClientCache)
@@ -41,6 +43,11 @@ public class CosmosClientUtil : ICosmosClientUtil
         var accountKey = config.GetValueStrict<string>("Azure:Cosmos:AccountKey");
         _environment = config.GetValueStrict<string>("Environment");
         _requestResponseLog = config.GetValue<bool>("Azure:Cosmos:RequestResponseLog");
+        _connectionMode = config.GetValue<string>("Azure:Cosmos:ConnectionMode");
+
+        if (_connectionMode.IsNullOrEmpty())
+            _connectionMode = "Gateway";
+
         _isTestEnvironment = _environment == DeployEnvironment.Local.Name || _environment == DeployEnvironment.Test.Name;
 
         _client = new AsyncSingleton<CosmosClient>(async (cancellationToken, _) =>
@@ -108,7 +115,7 @@ public class CosmosClientUtil : ICosmosClientUtil
 
     private ConnectionMode GetConnectionMode()
     {
-        if (_environment == DeployEnvironment.Test.Name)
+        if (_connectionMode == "Gateway")
             return ConnectionMode.Gateway;
 
         return ConnectionMode.Direct;
