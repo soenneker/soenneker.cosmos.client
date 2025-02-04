@@ -39,7 +39,7 @@
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.1" />
 
         <PackageReference Include="Soenneker.Cosmos.Serializer" Version="3.0.2018" />
-        <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="3.0.158" />
+        <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="3.0.159" />
         <PackageReference Include="Soenneker.Extensions.Configuration" Version="3.0.624" />
         <PackageReference Include="Soenneker.Utils.HttpClientCache" Version="3.0.1423" />
     </ItemGroup>
