@@ -11,10 +11,12 @@ namespace Soenneker.Cosmos.Client.Registrars;
 /// </summary>
 public static class CosmosClientUtilRegistrar
 {
-    public static void AddCosmosClientUtilAsSingleton(this IServiceCollection services)
+    public static IServiceCollection AddCosmosClientUtilAsSingleton(this IServiceCollection services)
     {
-        services.AddHttpClientCache();
+        services.AddHttpClientCacheAsSingleton();
         services.AddMemoryStreamUtil();
         services.TryAddSingleton<ICosmosClientUtil, CosmosClientUtil>();
+
+        return services;
     }
 }

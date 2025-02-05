@@ -104,8 +104,7 @@ public class CosmosClientUtil : ICosmosClientUtil
             };
         }
 
-        HttpClient httpClient = await _httpClientCache.Get(nameof(CosmosClientUtil), httpClientOptions, cancellationToken).NoSync();
-        return httpClient;
+        return await _httpClientCache.Get(nameof(CosmosClientUtil), httpClientOptions, cancellationToken).NoSync();
     }
 
     public ValueTask<CosmosClient> Get(CancellationToken cancellationToken = default)
