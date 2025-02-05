@@ -13,9 +13,9 @@ public static class CosmosClientUtilRegistrar
 {
     public static IServiceCollection AddCosmosClientUtilAsSingleton(this IServiceCollection services)
     {
-        services.AddHttpClientCacheAsSingleton();
-        services.AddMemoryStreamUtil();
-        services.TryAddSingleton<ICosmosClientUtil, CosmosClientUtil>();
+        services.AddHttpClientCacheAsSingleton()
+                .AddMemoryStreamUtilAsSingleton()
+                .TryAddSingleton<ICosmosClientUtil, CosmosClientUtil>();
 
         return services;
     }
