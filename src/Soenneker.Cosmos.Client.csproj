@@ -41,6 +41,6 @@
         <PackageReference Include="Soenneker.Cosmos.Serializer" Version="3.0.2240" />
         <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="3.0.167" />
         <PackageReference Include="Soenneker.Extensions.Configuration" Version="3.0.655" />
-        <PackageReference Include="Soenneker.Utils.HttpClientCache" Version="3.0.1587" />
+        <PackageReference Include="Soenneker.Utils.HttpClientCache" Version="3.0.1588" />
     </ItemGroup>
 </Project>
