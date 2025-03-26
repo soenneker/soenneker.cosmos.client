@@ -27,7 +27,6 @@ public class CosmosClientUtil : ICosmosClientUtil
 
     private readonly AsyncSingleton<CosmosClient>? _client;
 
-    private readonly string? _environment;
     private readonly bool _requestResponseLog;
     private readonly bool _isTestEnvironment;
     private readonly string? _connectionMode;
@@ -41,14 +40,14 @@ public class CosmosClientUtil : ICosmosClientUtil
 
         var endpoint = config.GetValueStrict<string>("Azure:Cosmos:Endpoint");
         var accountKey = config.GetValueStrict<string>("Azure:Cosmos:AccountKey");
-        _environment = config.GetValueStrict<string>("Environment");
+        var environment = config.GetValueStrict<string>("Environment");
         _requestResponseLog = config.GetValue<bool>("Azure:Cosmos:RequestResponseLog");
         _connectionMode = config.GetValue<string>("Azure:Cosmos:ConnectionMode");
 
         if (_connectionMode.IsNullOrEmpty())
             _connectionMode = "Direct";
 
-        _isTestEnvironment = _environment == DeployEnvironment.Local.Name || _environment == DeployEnvironment.Test.Name;
+        _isTestEnvironment = environment == DeployEnvironment.Local.Name || environment == DeployEnvironment.Test.Name;
 
         _client = new AsyncSingleton<CosmosClient>(async (cancellationToken, _) =>
         {
