@@ -8,13 +8,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Soenneker.Cosmos.Client.Abstract;
 using Soenneker.Cosmos.Serializer;
+using Soenneker.Dtos.HttpClientOptions;
 using Soenneker.Enums.DeployEnvironment;
 using Soenneker.Extensions.Configuration;
 using Soenneker.Extensions.String;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Utils.AsyncSingleton;
 using Soenneker.Utils.HttpClientCache.Abstract;
-using Soenneker.Utils.HttpClientCache.Dtos;
 using Soenneker.Utils.MemoryStream.Abstract;
 
 namespace Soenneker.Cosmos.Client;
