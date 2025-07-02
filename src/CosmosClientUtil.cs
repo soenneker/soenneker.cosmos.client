@@ -20,7 +20,7 @@ using Soenneker.Utils.MemoryStream.Abstract;
 namespace Soenneker.Cosmos.Client;
 
 ///<inheritdoc cref="ICosmosClientUtil"/>
-public class CosmosClientUtil : ICosmosClientUtil
+public sealed class CosmosClientUtil : ICosmosClientUtil
 {
     private readonly ILogger<CosmosClientUtil> _logger;
     private readonly IHttpClientCache _httpClientCache;
@@ -151,8 +151,6 @@ public class CosmosClientUtil : ICosmosClientUtil
             await _client.DisposeAsync().NoSync();
 
         await _httpClientCache.Remove(nameof(CosmosClientUtil)).NoSync();
-
-        GC.SuppressFinalize(this);
     }
 
     public void Dispose()
@@ -165,7 +163,5 @@ public class CosmosClientUtil : ICosmosClientUtil
         _client?.Dispose();
 
         _httpClientCache.RemoveSync(nameof(CosmosClientUtil));
-
-        GC.SuppressFinalize(this);
     }
 }
