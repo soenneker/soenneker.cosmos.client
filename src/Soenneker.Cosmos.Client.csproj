@@ -37,7 +37,7 @@
         <None Include="..\LICENSE" Pack="true" PackagePath="\" />
         <None Include="..\icon.png" Pack="true" PackagePath="\" />
 
-        <PackageReference Include="Soenneker.Cosmos.Serializer" Version="3.0.2418" />
+        <PackageReference Include="Soenneker.Cosmos.Serializer" Version="3.0.2420" />
         <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="3.0.176" />
         <PackageReference Include="Soenneker.Extensions.Configuration" Version="3.0.705" />
         <PackageReference Include="Soenneker.Utils.HttpClientCache" Version="3.0.1716" />
