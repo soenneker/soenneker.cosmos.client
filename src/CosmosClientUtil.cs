@@ -27,9 +27,9 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
     private readonly AsyncSingleton<CosmosClient>? _client;
 
-    private readonly bool _requestResponseLog;
-    private readonly bool _isTestEnvironment;
-    private readonly string? _connectionMode;
+    private  bool _requestResponseLog;
+    private  bool _isTestEnvironment;
+    private  string? _connectionMode;
 
     private bool _disposed;
 
@@ -38,19 +38,19 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
         _logger = logger;
         _httpClientCache = httpClientCache;
 
-        var endpoint = config.GetValueStrict<string>("Azure:Cosmos:Endpoint");
-        var accountKey = config.GetValueStrict<string>("Azure:Cosmos:AccountKey");
-        var environment = config.GetValueStrict<string>("Environment");
-        _requestResponseLog = config.GetValue<bool>("Azure:Cosmos:RequestResponseLog");
-        _connectionMode = config.GetValue<string>("Azure:Cosmos:ConnectionMode");
-
-        if (_connectionMode.IsNullOrEmpty())
-            _connectionMode = "Direct";
-
-        _isTestEnvironment = environment == DeployEnvironment.Local.Name || environment == DeployEnvironment.Test.Name;
-
         _client = new AsyncSingleton<CosmosClient>(async (cancellationToken, _) =>
         {
+            var endpoint = config.GetValueStrict<string>("Azure:Cosmos:Endpoint");
+            var accountKey = config.GetValueStrict<string>("Azure:Cosmos:AccountKey");
+            var environment = config.GetValueStrict<string>("Environment");
+            _requestResponseLog = config.GetValue<bool>("Azure:Cosmos:RequestResponseLog");
+            _connectionMode = config.GetValue<string>("Azure:Cosmos:ConnectionMode");
+
+            if (_connectionMode.IsNullOrEmpty())
+                _connectionMode = "Direct";
+
+            _isTestEnvironment = environment == DeployEnvironment.Local.Name || environment == DeployEnvironment.Test.Name;
+
             _logger.LogInformation("Initializing Cosmos client using endpoint: {endpoint}", endpoint);
 
             HttpClient httpClient = await GetHttpClient(cancellationToken).NoSync();
