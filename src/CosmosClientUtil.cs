@@ -36,7 +36,6 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
     public CosmosClientUtil(IConfiguration config, IMemoryStreamUtil memoryStreamUtil, ILogger<CosmosClientUtil> logger, IHttpClientCache httpClientCache)
     {
         _logger = logger;
-        IMemoryStreamUtil memoryStreamUtil1 = memoryStreamUtil;
         _httpClientCache = httpClientCache;
 
         var environment = config.GetValueStrict<string>("Environment");
@@ -60,7 +59,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
             var clientOptions = new CosmosClientOptions
             {
                 ConnectionMode = GetConnectionMode(),
-                Serializer = new CosmosSystemTextJsonSerializer(memoryStreamUtil1),
+                Serializer = new CosmosSystemTextJsonSerializer(memoryStreamUtil),
                 HttpClientFactory = () => httpClient
             };
 
