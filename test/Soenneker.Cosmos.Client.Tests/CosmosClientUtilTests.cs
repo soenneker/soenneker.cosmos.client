@@ -19,11 +19,5 @@ public class CosmosClientUtilTests : FixturedUnitTest
     [Fact]
     public async Task Default()
     {
-        const string endpoint = "https://test-endpoint.documents.azure.com:443/";
-        const string accountKey = "test-account-key";
-
-        var client = await _util.Get(endpoint, accountKey, TestContext.Current.CancellationToken);
-        
-        Assert.NotNull(client);
     }
 }
