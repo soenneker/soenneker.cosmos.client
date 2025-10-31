@@ -23,6 +23,8 @@ namespace Soenneker.Cosmos.Client;
 public sealed class CosmosClientUtil : ICosmosClientUtil
 {
     private readonly ILogger<CosmosClientUtil> _logger;
+    private readonly IConfiguration _config;
+    private readonly IMemoryStreamUtil _memoryStreamUtil;
     private readonly IHttpClientCache _httpClientCache;
 
     private readonly SingletonDictionary<CosmosClient> _clients;
@@ -36,6 +38,8 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
     public CosmosClientUtil(IConfiguration config, IMemoryStreamUtil memoryStreamUtil, ILogger<CosmosClientUtil> logger, IHttpClientCache httpClientCache)
     {
         _logger = logger;
+        _config = config;
+        _memoryStreamUtil = memoryStreamUtil;
         _httpClientCache = httpClientCache;
 
         var environment = config.GetValueStrict<string>("Environment");
@@ -59,7 +63,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
             var clientOptions = new CosmosClientOptions
             {
                 ConnectionMode = GetConnectionMode(),
-                Serializer = new CosmosSystemTextJsonSerializer(memoryStreamUtil),
+                Serializer = new CosmosSystemTextJsonSerializer(_memoryStreamUtil),
                 HttpClientFactory = () => httpClient
             };
 
@@ -105,6 +109,16 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
         }
 
         return await _httpClientCache.Get(nameof(CosmosClientUtil), httpClientOptions, cancellationToken).NoSync();
+    }
+
+    public ValueTask<CosmosClient> Get(CancellationToken cancellationToken = default)
+    {
+        var endpoint = _config.GetValueStrict<string>("Azure:Cosmos:Endpoint");
+        var accountKey = _config.GetValueStrict<string>("Azure:Cosmos:AccountKey");
+
+        var key = $"{endpoint}-{accountKey}";
+
+        return _clients.Get(key, cancellationToken, endpoint, accountKey);
     }
 
     public ValueTask<CosmosClient> Get(string endpoint, string accountKey, CancellationToken cancellationToken = default)

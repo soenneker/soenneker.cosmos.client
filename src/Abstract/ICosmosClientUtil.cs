@@ -12,5 +12,8 @@ namespace Soenneker.Cosmos.Client.Abstract;
 public interface ICosmosClientUtil : IDisposable, IAsyncDisposable
 {
     [Pure]
+    ValueTask<CosmosClient> Get(CancellationToken cancellationToken = default);
+
+    [Pure]
     ValueTask<CosmosClient> Get(string endpoint, string accountKey, CancellationToken cancellationToken = default);
 }

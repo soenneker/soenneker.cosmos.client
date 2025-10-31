@@ -17,7 +17,7 @@ public class CosmosClientUtilTests : FixturedUnitTest
     }
 
     [Fact]
-    public async Task Default()
+    public void Default()
     {
     }
 }
