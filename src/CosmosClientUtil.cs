@@ -13,9 +13,9 @@ using Soenneker.Enums.DeployEnvironment;
 using Soenneker.Extensions.Configuration;
 using Soenneker.Extensions.String;
 using Soenneker.Extensions.ValueTask;
-using Soenneker.Utils.AsyncSingleton;
 using Soenneker.Utils.HttpClientCache.Abstract;
 using Soenneker.Utils.MemoryStream.Abstract;
+using Soenneker.Utils.SingletonDictionary;
 
 namespace Soenneker.Cosmos.Client;
 
@@ -25,40 +25,42 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
     private readonly ILogger<CosmosClientUtil> _logger;
     private readonly IHttpClientCache _httpClientCache;
 
-    private readonly AsyncSingleton<CosmosClient>? _client;
+    private readonly SingletonDictionary<CosmosClient> _clients;
 
-    private  bool _requestResponseLog;
-    private  bool _isTestEnvironment;
-    private  string? _connectionMode;
+    private readonly bool _requestResponseLog;
+    private readonly bool _isTestEnvironment;
+    private readonly string? _connectionMode;
 
     private bool _disposed;
 
     public CosmosClientUtil(IConfiguration config, IMemoryStreamUtil memoryStreamUtil, ILogger<CosmosClientUtil> logger, IHttpClientCache httpClientCache)
     {
         _logger = logger;
+        IMemoryStreamUtil memoryStreamUtil1 = memoryStreamUtil;
         _httpClientCache = httpClientCache;
 
-        _client = new AsyncSingleton<CosmosClient>(async (cancellationToken, _) =>
+        var environment = config.GetValueStrict<string>("Environment");
+        _requestResponseLog = config.GetValue<bool>("Azure:Cosmos:RequestResponseLog");
+        _connectionMode = config.GetValue<string>("Azure:Cosmos:ConnectionMode");
+
+        if (_connectionMode.IsNullOrEmpty())
+            _connectionMode = "Direct";
+
+        _isTestEnvironment = environment == DeployEnvironment.Local.Name || environment == DeployEnvironment.Test.Name;
+
+        _clients = new SingletonDictionary<CosmosClient>(async (key, args) =>
         {
-            var endpoint = config.GetValueStrict<string>("Azure:Cosmos:Endpoint");
-            var accountKey = config.GetValueStrict<string>("Azure:Cosmos:AccountKey");
-            var environment = config.GetValueStrict<string>("Environment");
-            _requestResponseLog = config.GetValue<bool>("Azure:Cosmos:RequestResponseLog");
-            _connectionMode = config.GetValue<string>("Azure:Cosmos:ConnectionMode");
-
-            if (_connectionMode.IsNullOrEmpty())
-                _connectionMode = "Direct";
-
-            _isTestEnvironment = environment == DeployEnvironment.Local.Name || environment == DeployEnvironment.Test.Name;
+            var endpoint = (string)args[0];
+            var accountKey = (string)args[1];
 
             _logger.LogInformation("Initializing Cosmos client using endpoint: {endpoint}", endpoint);
 
-            HttpClient httpClient = await GetHttpClient(cancellationToken).NoSync();
+            HttpClient httpClient = await GetHttpClient(CancellationToken.None).NoSync();
 
             var clientOptions = new CosmosClientOptions
             {
                 ConnectionMode = GetConnectionMode(),
-                Serializer = new CosmosSystemTextJsonSerializer(memoryStreamUtil),
+                Serializer = new CosmosSystemTextJsonSerializer(memoryStreamUtil1),
                 HttpClientFactory = () => httpClient
             };
 
@@ -106,9 +108,11 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
         return await _httpClientCache.Get(nameof(CosmosClientUtil), httpClientOptions, cancellationToken).NoSync();
     }
 
-    public ValueTask<CosmosClient> Get(CancellationToken cancellationToken = default)
+    public ValueTask<CosmosClient> Get(string endpoint, string accountKey, CancellationToken cancellationToken = default)
     {
-        return _client!.Get(cancellationToken);
+        var key = $"{endpoint}-{accountKey}";
+
+        return _clients.Get(key, cancellationToken, endpoint, accountKey);
     }
 
     private ConnectionMode GetConnectionMode()
@@ -147,8 +151,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
         _disposed = true;
 
-        if (_client != null)
-            await _client.DisposeAsync().NoSync();
+        await _clients.DisposeAsync().NoSync();
 
         await _httpClientCache.Remove(nameof(CosmosClientUtil)).NoSync();
     }
@@ -160,7 +163,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
         _disposed = true;
 
-        _client?.Dispose();
+        _clients.Dispose();
 
         _httpClientCache.RemoveSync(nameof(CosmosClientUtil));
     }

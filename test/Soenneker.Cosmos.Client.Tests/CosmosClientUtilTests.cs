@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Soenneker.Cosmos.Client.Abstract;
 using Soenneker.Tests.FixturedUnit;
 using Xunit;
@@ -16,8 +17,13 @@ public class CosmosClientUtilTests : FixturedUnitTest
     }
 
     [Fact]
-    public void Default()
+    public async Task Default()
     {
+        const string endpoint = "https://test-endpoint.documents.azure.com:443/";
+        const string accountKey = "test-account-key";
 
+        var client = await _util.Get(endpoint, accountKey, TestContext.Current.CancellationToken);
+        
+        Assert.NotNull(client);
     }
 }
