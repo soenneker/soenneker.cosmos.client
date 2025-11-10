@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Threading;
@@ -24,7 +25,6 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 {
     private readonly ILogger<CosmosClientUtil> _logger;
     private readonly IConfiguration _config;
-    private readonly IMemoryStreamUtil _memoryStreamUtil;
     private readonly IHttpClientCache _httpClientCache;
 
     private readonly SingletonDictionary<CosmosClient> _clients;
@@ -39,7 +39,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
     {
         _logger = logger;
         _config = config;
-        _memoryStreamUtil = memoryStreamUtil;
+        IMemoryStreamUtil memoryStreamUtil1 = memoryStreamUtil;
         _httpClientCache = httpClientCache;
 
         var environment = config.GetValueStrict<string>("Environment");
@@ -58,12 +58,13 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
             _logger.LogInformation("Initializing Cosmos client using endpoint: {endpoint}", endpoint);
 
-            HttpClient httpClient = await GetHttpClient(CancellationToken.None).NoSync();
+            HttpClient httpClient = await GetHttpClient(key, CancellationToken.None)
+                .NoSync();
 
             var clientOptions = new CosmosClientOptions
             {
                 ConnectionMode = GetConnectionMode(),
-                Serializer = new CosmosSystemTextJsonSerializer(_memoryStreamUtil),
+                Serializer = new CosmosSystemTextJsonSerializer(memoryStreamUtil1),
                 HttpClientFactory = () => httpClient
             };
 
@@ -77,38 +78,41 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
         });
     }
 
-    private async ValueTask<HttpClient> GetHttpClient(CancellationToken cancellationToken)
+    private ValueTask<HttpClient> GetHttpClient(string key, CancellationToken cancellationToken)
     {
-        HttpClientOptions httpClientOptions;
-
-        if (_isTestEnvironment)
+        return _httpClientCache.Get(key, () =>
         {
-            _logger.LogWarning("Dangerously accepting any server certificate for Cosmos!");
+            HttpClientOptions httpClientOptions;
 
-            const int timeoutSecs = 120;
-
-            _logger.LogDebug("Setting timeout for Cosmos to {timeout}s", timeoutSecs);
-
-            var testHttpClientHandler = new HttpClientHandler
+            if (_isTestEnvironment)
             {
-                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-            };
+                _logger.LogWarning("Dangerously accepting any server certificate for Cosmos!");
 
-            httpClientOptions = new HttpClientOptions
-            {
-                Timeout = TimeSpan.FromSeconds(timeoutSecs),
-                HttpClientHandler = testHttpClientHandler
-            };
-        }
-        else
-        {
-            httpClientOptions = new HttpClientOptions
-            {
-                PooledConnectionLifetime = TimeSpan.FromMinutes(10)
-            };
-        }
+                const int timeoutSecs = 120;
 
-        return await _httpClientCache.Get(nameof(CosmosClientUtil), httpClientOptions, cancellationToken).NoSync();
+                _logger.LogDebug("Setting timeout for Cosmos to {timeout}s", timeoutSecs);
+
+                var testHttpClientHandler = new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+                };
+
+                httpClientOptions = new HttpClientOptions
+                {
+                    Timeout = TimeSpan.FromSeconds(timeoutSecs),
+                    HttpClientHandler = testHttpClientHandler
+                };
+            }
+            else
+            {
+                httpClientOptions = new HttpClientOptions
+                {
+                    PooledConnectionLifetime = TimeSpan.FromMinutes(10)
+                };
+            }
+
+            return httpClientOptions;
+        }, cancellationToken);
     }
 
     public ValueTask<CosmosClient> Get(CancellationToken cancellationToken = default)
@@ -145,7 +149,8 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
             return;
 
         var defaultTrace = Type.GetType("Microsoft.Azure.Cosmos.Core.Trace.DefaultTrace,Microsoft.Azure.Cosmos.Direct");
-        var traceSource = defaultTrace?.GetProperty("TraceSource")?.GetValue(null) as TraceSource;
+        var traceSource = defaultTrace?.GetProperty("TraceSource")
+                                      ?.GetValue(null) as TraceSource;
 
         if (traceSource != null)
         {
@@ -164,9 +169,13 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
         _disposed = true;
 
-        await _clients.DisposeAsync().NoSync();
+        foreach (string keys in await _clients.GetKeys())
+        {
+            await _httpClientCache.Remove(keys).NoSync();
+        }
 
-        await _httpClientCache.Remove(nameof(CosmosClientUtil)).NoSync();
+        await _clients.DisposeAsync()
+                      .NoSync();
     }
 
     public void Dispose()
@@ -176,8 +185,11 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
         _disposed = true;
 
-        _clients.Dispose();
+        foreach (string key in _clients.GetKeysSync())
+        {
+            _httpClientCache.RemoveSync(key);
+        }
 
-        _httpClientCache.RemoveSync(nameof(CosmosClientUtil));
+        _clients.Dispose();
     }
 }
