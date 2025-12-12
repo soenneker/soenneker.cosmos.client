@@ -41,6 +41,6 @@
         <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="4.0.183" />
         <PackageReference Include="Soenneker.Extensions.Configuration" Version="4.0.741" />
         <PackageReference Include="Soenneker.Utils.HttpClientCache" Version="4.0.1774" />
-        <PackageReference Include="Soenneker.Utils.SingletonDictionary" Version="4.0.1120" />
+        <PackageReference Include="Soenneker.Utils.SingletonDictionary" Version="4.0.1121" />
     </ItemGroup>
 </Project>
