@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Threading;
@@ -7,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Soenneker.Atomics.ValueBools;
 using Soenneker.Cosmos.Client.Abstract;
 using Soenneker.Cosmos.Serializer;
 using Soenneker.Dtos.HttpClientOptions;
@@ -33,7 +33,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
     private readonly bool _isTestEnvironment;
     private readonly string? _connectionMode;
 
-    private bool _disposed;
+    private ValueAtomicBool _disposed = new(false);
 
     public CosmosClientUtil(IConfiguration config, IMemoryStreamUtil memoryStreamUtil, ILogger<CosmosClientUtil> logger, IHttpClientCache httpClientCache)
     {
@@ -164,14 +164,13 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
     public async ValueTask DisposeAsync()
     {
-        if (_disposed)
+        if (!_disposed.TrySetTrue())
             return;
-
-        _disposed = true;
 
         foreach (string keys in await _clients.GetKeys())
         {
-            await _httpClientCache.Remove(keys).NoSync();
+            await _httpClientCache.Remove(keys)
+                                  .NoSync();
         }
 
         await _clients.DisposeAsync()
@@ -180,10 +179,8 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
     public void Dispose()
     {
-        if (_disposed)
+        if (!_disposed.TrySetTrue())
             return;
-
-        _disposed = true;
 
         foreach (string key in _clients.GetKeysSync())
         {
