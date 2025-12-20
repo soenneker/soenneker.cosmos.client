@@ -27,7 +27,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
     private readonly IConfiguration _config;
     private readonly IHttpClientCache _httpClientCache;
 
-    private readonly SingletonDictionary<CosmosClient> _clients;
+    private readonly SingletonDictionary<CosmosClient, string, string> _clients;
 
     private readonly bool _requestResponseLog;
     private readonly bool _isTestEnvironment;
@@ -51,11 +51,8 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
         _isTestEnvironment = environment == DeployEnvironment.Local.Name || environment == DeployEnvironment.Test.Name;
 
-        _clients = new SingletonDictionary<CosmosClient>(async (key, args) =>
+        _clients = new SingletonDictionary<CosmosClient, string, string>(async (key, endpoint, accountKey) =>
         {
-            var endpoint = (string)args[0];
-            var accountKey = (string)args[1];
-
             _logger.LogInformation("Initializing Cosmos client using endpoint: {endpoint}", endpoint);
 
             HttpClient httpClient = await GetHttpClient(key, CancellationToken.None)
@@ -122,14 +119,14 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
         var key = $"{endpoint}-{accountKey}";
 
-        return _clients.Get(key, cancellationToken, endpoint, accountKey);
+        return _clients.Get(key, endpoint, accountKey, cancellationToken);
     }
 
     public ValueTask<CosmosClient> Get(string endpoint, string accountKey, CancellationToken cancellationToken = default)
     {
         var key = $"{endpoint}-{accountKey}";
 
-        return _clients.Get(key, cancellationToken, endpoint, accountKey);
+        return _clients.Get(key, endpoint, accountKey, cancellationToken);
     }
 
     private ConnectionMode GetConnectionMode()
