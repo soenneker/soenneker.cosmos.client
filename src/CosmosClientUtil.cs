@@ -1,9 +1,4 @@
-﻿using System;
-using System.Diagnostics;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Azure.Cosmos;
+﻿using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Soenneker.Atomics.ValueBools;
@@ -17,6 +12,11 @@ using Soenneker.Extensions.ValueTask;
 using Soenneker.Utils.HttpClientCache.Abstract;
 using Soenneker.Utils.MemoryStream.Abstract;
 using Soenneker.Utils.SingletonDictionary;
+using System;
+using System.Diagnostics;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Soenneker.Cosmos.Client;
 
@@ -39,7 +39,6 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
     {
         _logger = logger;
         _config = config;
-        IMemoryStreamUtil memoryStreamUtil1 = memoryStreamUtil;
         _httpClientCache = httpClientCache;
 
         var environment = config.GetValueStrict<string>("Environment");
@@ -51,17 +50,21 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
         _isTestEnvironment = environment == DeployEnvironment.Local.Name || environment == DeployEnvironment.Test.Name;
 
+        var serializer = new CosmosSystemTextJsonSerializer(memoryStreamUtil);
+
         _clients = new SingletonDictionary<CosmosClient, string, string>(async (key, endpoint, accountKey) =>
         {
             _logger.LogInformation("Initializing Cosmos client using endpoint: {endpoint}", endpoint);
 
-            HttpClient httpClient = await GetHttpClient(key, CancellationToken.None)
+            var httpKey = $"cosmos:{endpoint}";
+
+            HttpClient httpClient = await GetHttpClient(httpKey, CancellationToken.None)
                 .NoSync();
 
             var clientOptions = new CosmosClientOptions
             {
                 ConnectionMode = GetConnectionMode(),
-                Serializer = new CosmosSystemTextJsonSerializer(memoryStreamUtil1),
+                Serializer = serializer,
                 HttpClientFactory = () => httpClient
             };
 
@@ -117,16 +120,12 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
         var endpoint = _config.GetValueStrict<string>("Azure:Cosmos:Endpoint");
         var accountKey = _config.GetValueStrict<string>("Azure:Cosmos:AccountKey");
 
-        var key = $"{endpoint}-{accountKey}";
-
-        return _clients.Get(key, endpoint, accountKey, cancellationToken);
+        return _clients.Get(endpoint, endpoint, accountKey, cancellationToken);
     }
 
     public ValueTask<CosmosClient> Get(string endpoint, string accountKey, CancellationToken cancellationToken = default)
     {
-        var key = $"{endpoint}-{accountKey}";
-
-        return _clients.Get(key, endpoint, accountKey, cancellationToken);
+        return _clients.Get(endpoint, endpoint, accountKey, cancellationToken);
     }
 
     private ConnectionMode GetConnectionMode()
@@ -151,7 +150,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
         if (traceSource != null)
         {
-            traceSource.Switch.Level = SourceLevels.All;
+            traceSource.Switch.Level = SourceLevels.Off;
             traceSource.Listeners.Clear();
             _logger.LogDebug("Turned Cosmos request/response logging off");
         }
@@ -164,9 +163,12 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
         if (!_disposed.TrySetTrue())
             return;
 
-        foreach (string keys in await _clients.GetKeys())
+        foreach (string endpoint in await _clients.GetKeys()
+                                                  .NoSync())
         {
-            await _httpClientCache.Remove(keys)
+            var httpKey = $"cosmos:{endpoint}";
+
+            await _httpClientCache.Remove(httpKey)
                                   .NoSync();
         }
 
@@ -179,9 +181,10 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
         if (!_disposed.TrySetTrue())
             return;
 
-        foreach (string key in _clients.GetKeysSync())
+        foreach (string endpoint in _clients.GetKeysSync())
         {
-            _httpClientCache.RemoveSync(key);
+            var httpKey = $"cosmos:{endpoint}";
+            _httpClientCache.RemoveSync(httpKey);
         }
 
         _clients.Dispose();
