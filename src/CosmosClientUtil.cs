@@ -31,9 +31,19 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
     private readonly bool _requestResponseLog;
     private readonly bool _isTestEnvironment;
-    private readonly string? _connectionMode;
+    private readonly ConnectionMode _connectionMode;
 
     private ValueAtomicBool _disposed = new(false);
+
+    private readonly CosmosSystemTextJsonSerializer _serializer;
+
+    private static readonly Lazy<HttpClientHandler> _dangerousTestHandler = new(static () =>
+            new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback =
+                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            },
+        isThreadSafe: true);
 
     public CosmosClientUtil(IConfiguration config, IMemoryStreamUtil memoryStreamUtil, ILogger<CosmosClientUtil> logger, IHttpClientCache httpClientCache)
     {
@@ -43,39 +53,43 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
         var environment = config.GetValueStrict<string>("Environment");
         _requestResponseLog = config.GetValue<bool>("Azure:Cosmos:RequestResponseLog");
-        _connectionMode = config.GetValue<string>("Azure:Cosmos:ConnectionMode");
+        var connectionMode = config.GetValue<string>("Azure:Cosmos:ConnectionMode");
 
-        if (_connectionMode.IsNullOrEmpty())
-            _connectionMode = "Direct";
+        _connectionMode = string.IsNullOrEmpty(connectionMode) ? ConnectionMode.Direct :
+            connectionMode.EqualsIgnoreCase("Direct") ? ConnectionMode.Direct :
+            connectionMode.EqualsIgnoreCase("Gateway") ? ConnectionMode.Gateway : throw new Exception("Invalid Azure Cosmos connection mode specified");
 
         _isTestEnvironment = environment == DeployEnvironment.Local.Name || environment == DeployEnvironment.Test.Name;
 
-        var serializer = new CosmosSystemTextJsonSerializer(memoryStreamUtil);
+        _serializer = new CosmosSystemTextJsonSerializer(memoryStreamUtil);
 
-        _clients = new SingletonDictionary<CosmosClient, string, string>(async (key, endpoint, accountKey) =>
-        {
-            _logger.LogInformation("Initializing Cosmos client using endpoint: {endpoint}", endpoint);
+        _clients = new SingletonDictionary<CosmosClient, string, string>(InitializeClient);
 
-            var httpKey = $"cosmos:{endpoint}";
-
-            HttpClient httpClient = await GetHttpClient(httpKey, CancellationToken.None)
-                .NoSync();
-
-            var clientOptions = new CosmosClientOptions
-            {
-                ConnectionMode = GetConnectionMode(),
-                Serializer = serializer,
-                HttpClientFactory = () => httpClient
-            };
-
-            var client = new CosmosClient(endpoint, accountKey, clientOptions);
-
+        if (_requestResponseLog)
             ConfigureRequestResponseLogging();
+    }
 
-            _logger.LogInformation("Finished initializing Cosmos client using endpoint: {endpoint}", endpoint);
+    private async ValueTask<CosmosClient> InitializeClient(string key, CancellationToken cancellationToken, string endpoint, string accountKey)
+    {
+        _logger.LogInformation("Initializing Cosmos client using endpoint: {endpoint}", endpoint);
 
-            return client;
-        });
+        var httpKey = $"cosmos:{endpoint}";
+
+        HttpClient httpClient = await GetHttpClient(httpKey, CancellationToken.None)
+            .NoSync();
+
+        var clientOptions = new CosmosClientOptions
+        {
+            ConnectionMode = _connectionMode,
+            Serializer = _serializer, // see note below
+            HttpClientFactory = () => httpClient
+        };
+
+        var client = new CosmosClient(endpoint, accountKey, clientOptions);
+
+        _logger.LogInformation("Finished initializing Cosmos client using endpoint: {endpoint}", endpoint);
+
+        return client;
     }
 
     private ValueTask<HttpClient> GetHttpClient(string key, CancellationToken cancellationToken)
@@ -92,15 +106,10 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
                 _logger.LogDebug("Setting timeout for Cosmos to {timeout}s", timeoutSecs);
 
-                var testHttpClientHandler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-                };
-
                 httpClientOptions = new HttpClientOptions
                 {
                     Timeout = TimeSpan.FromSeconds(timeoutSecs),
-                    HttpClientHandler = testHttpClientHandler
+                    HttpClientHandler = _dangerousTestHandler.Value
                 };
             }
             else
@@ -126,16 +135,6 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
     public ValueTask<CosmosClient> Get(string endpoint, string accountKey, CancellationToken cancellationToken = default)
     {
         return _clients.Get(endpoint, endpoint, accountKey, cancellationToken);
-    }
-
-    private ConnectionMode GetConnectionMode()
-    {
-        return _connectionMode switch
-        {
-            "Direct" => ConnectionMode.Direct,
-            "Gateway" => ConnectionMode.Gateway,
-            _ => throw new Exception("Invalid Azure Cosmos connection mode specified")
-        };
     }
 
     // https://github.com/Azure/azure-cosmos-dotnet-v3/issues/892
