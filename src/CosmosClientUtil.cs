@@ -24,8 +24,9 @@ namespace Soenneker.Cosmos.Client;
 public sealed class CosmosClientUtil : ICosmosClientUtil
 {
     private readonly ILogger<CosmosClientUtil> _logger;
-    private readonly IConfiguration _config;
     private readonly IHttpClientCache _httpClientCache;
+    private readonly string _endpoint;
+    private readonly string _accountKey;
 
     private readonly SingletonDictionary<CosmosClient, string, string> _clients;
 
@@ -47,7 +48,6 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
     public CosmosClientUtil(IConfiguration config, IMemoryStreamUtil memoryStreamUtil, ILogger<CosmosClientUtil> logger, IHttpClientCache httpClientCache)
     {
         _logger = logger;
-        _config = config;
         _httpClientCache = httpClientCache;
 
         var environment = config.GetValueStrict<string>("Environment");
@@ -59,6 +59,9 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
             connectionMode.EqualsIgnoreCase("Gateway") ? ConnectionMode.Gateway : throw new Exception("Invalid Azure Cosmos connection mode specified");
 
         _isTestEnvironment = environment == DeployEnvironment.Local.Name || environment == DeployEnvironment.Test.Name;
+
+        _endpoint = config.GetValueStrict<string>("Azure:Cosmos:Endpoint");
+        _accountKey = config.GetValueStrict<string>("Azure:Cosmos:AccountKey");
 
         _serializer = new CosmosSystemTextJsonSerializer(memoryStreamUtil);
 
@@ -93,43 +96,42 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
     private ValueTask<HttpClient> GetHttpClient(string key, CancellationToken cancellationToken)
     {
-        return _httpClientCache.Get(key, () =>
+        return _httpClientCache.Get(key, CreateHttpClientOptions, cancellationToken);
+    }
+
+    private HttpClientOptions? CreateHttpClientOptions()
+    {
+        HttpClientOptions httpClientOptions;
+
+        if (_isTestEnvironment)
         {
-            HttpClientOptions httpClientOptions;
+            _logger.LogWarning("Dangerously accepting any server certificate for Cosmos!");
 
-            if (_isTestEnvironment)
+            const int timeoutSecs = 120;
+
+            _logger.LogDebug("Setting timeout for Cosmos to {timeout}s", timeoutSecs);
+
+            httpClientOptions = new HttpClientOptions
             {
-                _logger.LogWarning("Dangerously accepting any server certificate for Cosmos!");
-
-                const int timeoutSecs = 120;
-
-                _logger.LogDebug("Setting timeout for Cosmos to {timeout}s", timeoutSecs);
-
-                httpClientOptions = new HttpClientOptions
-                {
-                    Timeout = TimeSpan.FromSeconds(timeoutSecs),
-                    PooledConnectionLifetime = _pooledLifetime,
-                    HttpClientHandler = _dangerousTestHandler.Value
-                };
-            }
-            else
+                Timeout = TimeSpan.FromSeconds(timeoutSecs),
+                PooledConnectionLifetime = _pooledLifetime,
+                HttpClientHandler = _dangerousTestHandler.Value
+            };
+        }
+        else
+        {
+            httpClientOptions = new HttpClientOptions
             {
-                httpClientOptions = new HttpClientOptions
-                {
-                    PooledConnectionLifetime = _pooledLifetime
-                };
-            }
+                PooledConnectionLifetime = _pooledLifetime
+            };
+        }
 
-            return httpClientOptions;
-        }, cancellationToken);
+        return httpClientOptions;
     }
 
     public ValueTask<CosmosClient> Get(CancellationToken cancellationToken = default)
     {
-        var endpoint = _config.GetValueStrict<string>("Azure:Cosmos:Endpoint");
-        var accountKey = _config.GetValueStrict<string>("Azure:Cosmos:AccountKey");
-
-        return _clients.Get(endpoint, endpoint, accountKey, cancellationToken);
+        return _clients.Get(_endpoint, _endpoint, _accountKey, cancellationToken);
     }
 
     public ValueTask<CosmosClient> Get(string endpoint, string accountKey, CancellationToken cancellationToken = default)
