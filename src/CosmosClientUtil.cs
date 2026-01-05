@@ -37,13 +37,10 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
     private readonly CosmosSystemTextJsonSerializer _serializer;
 
-    private static readonly Lazy<HttpClientHandler> _dangerousTestHandler = new(static () =>
-            new HttpClientHandler
-            {
-                ServerCertificateCustomValidationCallback =
-                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-            },
-        isThreadSafe: true);
+    private static readonly Lazy<HttpClientHandler> _dangerousTestHandler = new(static () => new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+    }, isThreadSafe: true);
 
     public CosmosClientUtil(IConfiguration config, IMemoryStreamUtil memoryStreamUtil, ILogger<CosmosClientUtil> logger, IHttpClientCache httpClientCache)
     {
@@ -81,7 +78,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
         var clientOptions = new CosmosClientOptions
         {
             ConnectionMode = _connectionMode,
-            Serializer = _serializer, // see note below
+            Serializer = _serializer,
             HttpClientFactory = () => httpClient
         };
 
