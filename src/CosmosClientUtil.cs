@@ -96,37 +96,36 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
     private ValueTask<HttpClient> GetHttpClient(string key, CancellationToken cancellationToken)
     {
-        return _httpClientCache.Get(key, CreateHttpClientOptions, cancellationToken);
-    }
-
-    private HttpClientOptions? CreateHttpClientOptions()
-    {
-        HttpClientOptions httpClientOptions;
-
-        if (_isTestEnvironment)
+        // No closure: state passed explicitly + static lambda
+        return _httpClientCache.Get(key, (isTestEnvironment: _isTestEnvironment, logger: _logger, pooledLifetime: _pooledLifetime), static state =>
         {
-            _logger.LogWarning("Dangerously accepting any server certificate for Cosmos!");
+            HttpClientOptions httpClientOptions;
 
-            const int timeoutSecs = 120;
-
-            _logger.LogDebug("Setting timeout for Cosmos to {timeout}s", timeoutSecs);
-
-            httpClientOptions = new HttpClientOptions
+            if (state.isTestEnvironment)
             {
-                Timeout = TimeSpan.FromSeconds(timeoutSecs),
-                PooledConnectionLifetime = _pooledLifetime,
-                HttpClientHandler = _dangerousTestHandler.Value
-            };
-        }
-        else
-        {
-            httpClientOptions = new HttpClientOptions
-            {
-                PooledConnectionLifetime = _pooledLifetime
-            };
-        }
+                state.logger.LogWarning("Dangerously accepting any server certificate for Cosmos!");
 
-        return httpClientOptions;
+                const int timeoutSecs = 120;
+
+                state.logger.LogDebug("Setting timeout for Cosmos to {timeout}s", timeoutSecs);
+
+                httpClientOptions = new HttpClientOptions
+                {
+                    Timeout = TimeSpan.FromSeconds(timeoutSecs),
+                    PooledConnectionLifetime = state.pooledLifetime,
+                    HttpClientHandler = _dangerousTestHandler.Value
+                };
+            }
+            else
+            {
+                httpClientOptions = new HttpClientOptions
+                {
+                    PooledConnectionLifetime = state.pooledLifetime
+                };
+            }
+
+            return httpClientOptions;
+        }, cancellationToken);
     }
 
     public ValueTask<CosmosClient> Get(CancellationToken cancellationToken = default)
