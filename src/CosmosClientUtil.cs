@@ -42,6 +42,8 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
         ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
     }, isThreadSafe: true);
 
+    private static readonly TimeSpan _pooledLifetime = TimeSpan.FromMinutes(10);
+
     public CosmosClientUtil(IConfiguration config, IMemoryStreamUtil memoryStreamUtil, ILogger<CosmosClientUtil> logger, IHttpClientCache httpClientCache)
     {
         _logger = logger;
@@ -106,6 +108,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
                 httpClientOptions = new HttpClientOptions
                 {
                     Timeout = TimeSpan.FromSeconds(timeoutSecs),
+                    PooledConnectionLifetime = _pooledLifetime,
                     HttpClientHandler = _dangerousTestHandler.Value
                 };
             }
@@ -113,7 +116,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
             {
                 httpClientOptions = new HttpClientOptions
                 {
-                    PooledConnectionLifetime = TimeSpan.FromMinutes(10)
+                    PooledConnectionLifetime = _pooledLifetime
                 };
             }
 
