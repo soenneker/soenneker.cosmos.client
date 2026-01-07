@@ -11,7 +11,7 @@ using Soenneker.Extensions.String;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Utils.HttpClientCache.Abstract;
 using Soenneker.Utils.MemoryStream.Abstract;
-using Soenneker.Utils.SingletonDictionary;
+using Soenneker.Dictionaries.Singletons;
 using System;
 using System.Diagnostics;
 using System.Net.Http;
@@ -71,7 +71,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
             ConfigureRequestResponseLogging();
     }
 
-    private async ValueTask<CosmosClient> InitializeClient(string key, CancellationToken cancellationToken, string endpoint, string accountKey)
+    private async ValueTask<CosmosClient> InitializeClient(string key, string endpoint, string accountKey, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Initializing Cosmos client using endpoint: {endpoint}", endpoint);
 
