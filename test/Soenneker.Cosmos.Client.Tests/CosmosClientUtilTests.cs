@@ -2,28 +2,26 @@ using System.Threading.Tasks;
 using AwesomeAssertions;
 using Microsoft.Azure.Cosmos;
 using Soenneker.Cosmos.Client.Abstract;
-using Soenneker.Tests.FixturedUnit;
-using Xunit;
-
+using Soenneker.Tests.HostedUnit;
 
 namespace Soenneker.Cosmos.Client.Tests;
 
-[Collection("Collection")]
-public class CosmosClientUtilTests : FixturedUnitTest
+[ClassDataSource<Host>(Shared = SharedType.PerTestSession)]
+public class CosmosClientUtilTests : HostedUnitTest
 {
     private readonly ICosmosClientUtil _util;
 
-    public CosmosClientUtilTests(Fixture fixture, ITestOutputHelper output) : base(fixture, output)
+    public CosmosClientUtilTests(Host host) : base(host)
     {
         _util = Resolve<ICosmosClientUtil>(true);
     }
 
-    [Fact]
+    [Test]
     public void Default()
     {
     }
 
-    [Fact]
+    [Test]
     public async Task Get_TwoClients_AreNotNull()
     {
         CosmosClient client1 = await _util.Get("https://localhost:8081", "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==", CancellationToken);
