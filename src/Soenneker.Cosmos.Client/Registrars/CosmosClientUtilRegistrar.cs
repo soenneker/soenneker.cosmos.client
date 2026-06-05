@@ -11,6 +11,11 @@ namespace Soenneker.Cosmos.Client.Registrars;
 /// </summary>
 public static class CosmosClientUtilRegistrar
 {
+    /// <summary>
+    /// Adds cosmos client util as singleton.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <returns>The result of the operation.</returns>
     public static IServiceCollection AddCosmosClientUtilAsSingleton(this IServiceCollection services)
     {
         services.AddHttpClientCacheAsSingleton()

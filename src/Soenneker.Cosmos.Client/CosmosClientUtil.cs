@@ -158,6 +158,10 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
             _logger.LogError("Trace source was null, unable to turn request/response logging off");
     }
 
+    /// <summary>
+    /// Asynchronously releases resources used by the current instance.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     public async ValueTask DisposeAsync()
     {
         if (!_disposed.TrySetTrue())
@@ -176,6 +180,9 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
                       .NoSync();
     }
 
+    /// <summary>
+    /// Releases resources used by the current instance.
+    /// </summary>
     public void Dispose()
     {
         if (!_disposed.TrySetTrue())
