@@ -11,3 +11,5 @@
 ```
 dotnet add package Soenneker.Cosmos.Client
 ```
+
+Set `Azure:Cosmos:AllowBulkExecution` to `true` for throughput-oriented copy, import, and bulk-write workloads. It defaults to `false`.

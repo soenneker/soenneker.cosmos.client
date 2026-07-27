@@ -31,6 +31,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
     private readonly SingletonDictionary<CosmosClient, string, string> _clients;
 
     private readonly bool _requestResponseLog;
+    private readonly bool _allowBulkExecution;
     private readonly bool _isTestEnvironment;
     private readonly ConnectionMode _connectionMode;
 
@@ -52,6 +53,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
         var environment = config.GetValueStrict<string>("Environment");
         _requestResponseLog = config.GetValue<bool>("Azure:Cosmos:RequestResponseLog");
+        _allowBulkExecution = config.GetValue<bool>("Azure:Cosmos:AllowBulkExecution");
         var connectionMode = config.GetValue<string>("Azure:Cosmos:ConnectionMode");
 
         _connectionMode = string.IsNullOrEmpty(connectionMode) ? ConnectionMode.Direct :
@@ -83,6 +85,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
         var clientOptions = new CosmosClientOptions
         {
             ConnectionMode = _connectionMode,
+            AllowBulkExecution = _allowBulkExecution,
             Serializer = _serializer,
             HttpClientFactory = () => httpClient
         };
