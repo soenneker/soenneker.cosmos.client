@@ -21,7 +21,7 @@ using System.Threading.Tasks;
 
 namespace Soenneker.Cosmos.Client;
 
-///<inheritdoc cref="ICosmosClientUtil"/>
+/// <inheritdoc cref="ICosmosClientUtil"/>
 public sealed class CosmosClientUtil : ICosmosClientUtil
 {
     private readonly ILogger<CosmosClientUtil> _logger;
