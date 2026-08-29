@@ -12,20 +12,20 @@ namespace Soenneker.Cosmos.Client.Abstract;
 public interface ICosmosClientUtil : IDisposable, IAsyncDisposable
 {
     /// <summary>
-    /// Gets the value.
+    /// Returns the configured cosmos Client used by the cosmos client.
     /// </summary>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A task containing the result of the operation.</returns>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>A task whose result is the requested cosmos Client.</returns>
     [Pure]
     ValueTask<CosmosClient> Get(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets the value.
+    /// Returns the configured cosmos Client used by the cosmos client.
     /// </summary>
-    /// <param name="endpoint">The endpoint.</param>
-    /// <param name="accountKey">The account key.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A task containing the result of the operation.</returns>
+    /// <param name="endpoint">Service endpoint to call.</param>
+    /// <param name="accountKey">Account key used for authentication.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>A task whose result is the requested cosmos Client.</returns>
     [Pure]
     ValueTask<CosmosClient> Get(string endpoint, string accountKey, CancellationToken cancellationToken = default);
 }

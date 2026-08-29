@@ -12,10 +12,10 @@ namespace Soenneker.Cosmos.Client.Registrars;
 public static class CosmosClientUtilRegistrar
 {
     /// <summary>
-    /// Adds cosmos client util as singleton.
+    /// Registers Cosmos Client Util with a singleton lifetime.
     /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <returns>The result of the operation.</returns>
+    /// <param name="services">Service collection that receives the registration.</param>
+    /// <returns>The same service collection, so additional registrations can be chained.</returns>
     public static IServiceCollection AddCosmosClientUtilAsSingleton(this IServiceCollection services)
     {
         services.AddHttpClientCacheAsSingleton()
