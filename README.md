@@ -5,7 +5,7 @@
 
 # Soenneker.Cosmos.Client
 
-Should be used for all Cosmos access. Handles disposal of the client.
+Creates, caches, and disposes Azure Cosmos DB SDK clients with shared HTTP transport and Soenneker's System.Text.Json serializer.
 
 ## Install
 
@@ -13,29 +13,67 @@ Should be used for all Cosmos access. Handles disposal of the client.
 dotnet add package Soenneker.Cosmos.Client
 ```
 
-## Quick start
+## Configuration
+
+```json
+{
+  "Environment": "Production",
+  "Azure": {
+    "Cosmos": {
+      "Endpoint": "https://your-account.documents.azure.com:443/",
+      "AccountKey": "your-account-key",
+      "ConnectionMode": "Direct",
+      "AllowBulkExecution": false,
+      "AllowInsecureServerCertificate": false
+    }
+  }
+}
+```
+
+`ConnectionMode` accepts `Direct` or `Gateway` and defaults to `Direct` when omitted. `AllowBulkExecution` is passed to `CosmosClientOptions`.
+
+`AllowInsecureServerCertificate` defaults to `false`. It is accepted only when `Environment` is `Local` or `Test` and is intended solely for a local Cosmos emulator with an untrusted development certificate. Never enable it against a remote endpoint.
+
+## Registration
 
 ```csharp
 using Soenneker.Cosmos.Client.Registrars;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
-var result = services.AddCosmosClientUtilAsSingleton();
+services.AddCosmosClientUtilAsSingleton();
 ```
 
-Registers Cosmos Client Util with a singleton lifetime.
+The registrar intentionally exposes only a singleton lifetime because the Cosmos SDK client is designed for long-lived reuse.
 
-## What you get
+## Usage
 
-- `ICosmosClientUtil` — Should be used for all Cosmos access. Handles disposal of the client.
-- `CosmosClientUtilRegistrar` — A utility library for Azure Cosmos client accessibility.
+```csharp
+using Microsoft.Azure.Cosmos;
+using Soenneker.Cosmos.Client.Abstract;
 
-## API at a glance
+public sealed class OrdersDatabase(ICosmosClientUtil clientUtil)
+{
+    public async ValueTask<Database> Get(CancellationToken cancellationToken)
+    {
+        CosmosClient client = await clientUtil.Get(cancellationToken);
+        return client.GetDatabase("orders");
+    }
+}
+```
 
-| API | What it does | Result / important behavior |
-| --- | --- | --- |
-| `CosmosClientUtilRegistrar.AddCosmosClientUtilAsSingleton(services)` | Registers Cosmos Client Util with a singleton lifetime. | The same service collection, so additional registrations can be chained. |
+For another account, use the explicit overload:
+
+```csharp
+CosmosClient client = await clientUtil.Get(endpoint, accountKey, cancellationToken);
+```
+
+Clients are cached by endpoint and a SHA-256 identity of the account key. Calling the overload with a rotated key creates a separate client without storing the raw key in the cache key. HTTP transports are reused per endpoint within the utility instance.
 
 ## Practical notes
 
-- Dispose instances you own when their scope ends so held resources can be released.
+- Do not dispose a returned `CosmosClient`; the utility owns all clients it returns. Dependency injection disposes the utility at application shutdown.
+- Client creation is lazy. Configuration and SDK options are captured when a client is first requested.
+- The utility no longer modifies Cosmos SDK global trace listeners. Configure diagnostic logging through the application's logging and Cosmos SDK options.
+- Account keys are credentials. Keep them in a secret provider and redact authorization material and request diagnostics from logs.
+- Cancellation can stop lazy initialization; it does not cancel or dispose a client that has already been created.

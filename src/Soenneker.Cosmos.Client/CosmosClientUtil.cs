@@ -13,9 +13,11 @@ using Soenneker.Utils.HttpClientCache.Abstract;
 using Soenneker.Utils.MemoryStream.Abstract;
 using Soenneker.Dictionaries.Singletons;
 using System;
-using System.Diagnostics;
+using System.Collections.Concurrent;
 using System.Net.Http;
 using System.Net.Security;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -31,10 +33,11 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
     private readonly SingletonDictionary<CosmosClient, string, string> _clients;
 
-    private readonly bool _requestResponseLog;
     private readonly bool _allowBulkExecution;
-    private readonly bool _isTestEnvironment;
+    private readonly bool _allowInsecureServerCertificate;
     private readonly ConnectionMode _connectionMode;
+    private readonly string _httpCachePrefix = $"cosmos:{Guid.NewGuid():N}";
+    private readonly ConcurrentDictionary<string, byte> _httpCacheKeys = new(StringComparer.Ordinal);
 
     private ValueAtomicBool _disposed = new(false);
 
@@ -49,16 +52,19 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
         _httpClientCache = httpClientCache;
 
         var environment = config.GetValueStrict<string>("Environment");
-        _requestResponseLog = config.GetValue<bool>("Azure:Cosmos:RequestResponseLog");
         _allowBulkExecution = config.GetValue<bool>("Azure:Cosmos:AllowBulkExecution");
         var connectionMode = config.GetValue<string>("Azure:Cosmos:ConnectionMode");
 
         _connectionMode = string.IsNullOrEmpty(connectionMode) ? ConnectionMode.Direct :
             connectionMode.EqualsIgnoreCase("Direct") ? ConnectionMode.Direct :
             connectionMode.EqualsIgnoreCase("Gateway") ? ConnectionMode.Gateway :
-            throw new Exception("Invalid Azure Cosmos connection mode specified");
+            throw new InvalidOperationException("Invalid Azure Cosmos connection mode specified");
 
-        _isTestEnvironment = environment == DeployEnvironment.Local.Name || environment == DeployEnvironment.Test.Name;
+        bool isTestEnvironment = environment == DeployEnvironment.Local.Name || environment == DeployEnvironment.Test.Name;
+        _allowInsecureServerCertificate = config.GetValue<bool>("Azure:Cosmos:AllowInsecureServerCertificate");
+
+        if (_allowInsecureServerCertificate && !isTestEnvironment)
+            throw new InvalidOperationException("Insecure Cosmos server certificates can only be enabled in Local or Test environments.");
 
         _endpoint = config.GetValueStrict<string>("Azure:Cosmos:Endpoint");
         _accountKey = config.GetValueStrict<string>("Azure:Cosmos:AccountKey");
@@ -67,8 +73,6 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
         _clients = new SingletonDictionary<CosmosClient, string, string>(InitializeClient);
 
-        if (_requestResponseLog)
-            ConfigureRequestResponseLogging();
     }
 
     private async ValueTask<CosmosClient> InitializeClient(string key, string endpoint, string accountKey,
@@ -76,9 +80,10 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
     {
         _logger.LogInformation("Initializing Cosmos client using endpoint: {endpoint}", endpoint);
 
-        var httpKey = $"cosmos:{endpoint}";
+        string httpKey = $"{_httpCachePrefix}:{endpoint}";
+        _httpCacheKeys.TryAdd(httpKey, 0);
 
-        HttpClient httpClient = await GetHttpClient(httpKey, CancellationToken.None).NoSync();
+        HttpClient httpClient = await GetHttpClient(httpKey, cancellationToken).NoSync();
 
         var clientOptions = new CosmosClientOptions
         {
@@ -99,11 +104,11 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
     {
         // No closure: state passed explicitly + static lambda
         return _httpClientCache.Get(key,
-            (isTestEnvironment: _isTestEnvironment, logger: _logger, pooledLifetime: _pooledLifetime), static state =>
+            (allowInsecureServerCertificate: _allowInsecureServerCertificate, logger: _logger, pooledLifetime: _pooledLifetime), static state =>
             {
                 HttpClientOptions httpClientOptions;
 
-                if (state.isTestEnvironment)
+                if (state.allowInsecureServerCertificate)
                 {
                     state.logger.LogWarning("Dangerously accepting any server certificate for Cosmos!");
 
@@ -135,32 +140,19 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
     public ValueTask<CosmosClient> Get(CancellationToken cancellationToken = default)
     {
-        return _clients.Get(_endpoint, _endpoint, _accountKey, cancellationToken);
+        return _clients.Get(GetClientKey(_endpoint, _accountKey), _endpoint, _accountKey, cancellationToken);
     }
 
     public ValueTask<CosmosClient> Get(string endpoint, string accountKey,
         CancellationToken cancellationToken = default)
     {
-        return _clients.Get(endpoint, endpoint, accountKey, cancellationToken);
+        return _clients.Get(GetClientKey(endpoint, accountKey), endpoint, accountKey, cancellationToken);
     }
 
-    // https://github.com/Azure/azure-cosmos-dotnet-v3/issues/892
-    private void ConfigureRequestResponseLogging()
+    private static string GetClientKey(string endpoint, string accountKey)
     {
-        if (!_requestResponseLog)
-            return;
-
-        var defaultTrace = Type.GetType("Microsoft.Azure.Cosmos.Core.Trace.DefaultTrace,Microsoft.Azure.Cosmos.Direct");
-        var traceSource = defaultTrace?.GetProperty("TraceSource")?.GetValue(null) as TraceSource;
-
-        if (traceSource != null)
-        {
-            traceSource.Switch.Level = SourceLevels.Off;
-            traceSource.Listeners.Clear();
-            _logger.LogDebug("Turned Cosmos request/response logging off");
-        }
-        else
-            _logger.LogError("Trace source was null, unable to turn request/response logging off");
+        byte[] accountKeyHash = SHA256.HashData(Encoding.UTF8.GetBytes(accountKey));
+        return endpoint + '|' + Convert.ToHexString(accountKeyHash);
     }
 
     /// <summary>
@@ -172,14 +164,10 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
         if (!_disposed.TrySetTrue())
             return;
 
-        foreach (string endpoint in await _clients.GetKeys().NoSync())
-        {
-            var httpKey = $"cosmos:{endpoint}";
-
-            await _httpClientCache.Remove(httpKey).NoSync();
-        }
-
         await _clients.DisposeAsync().NoSync();
+
+        foreach (string httpKey in _httpCacheKeys.Keys)
+            await _httpClientCache.Remove(httpKey).NoSync();
     }
 
     /// <summary>
@@ -190,12 +178,9 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
         if (!_disposed.TrySetTrue())
             return;
 
-        foreach (string endpoint in _clients.GetKeysSync())
-        {
-            var httpKey = $"cosmos:{endpoint}";
-            _httpClientCache.RemoveSync(httpKey);
-        }
-
         _clients.Dispose();
+
+        foreach (string httpKey in _httpCacheKeys.Keys)
+            _httpClientCache.RemoveSync(httpKey);
     }
 }
