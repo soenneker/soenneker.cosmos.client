@@ -9,6 +9,7 @@ using Soenneker.Enums.DeployEnvironment;
 using Soenneker.Extensions.Configuration;
 using Soenneker.Extensions.String;
 using Soenneker.Extensions.ValueTask;
+using Soenneker.Hashing.Sha256;
 using Soenneker.Utils.HttpClientCache.Abstract;
 using Soenneker.Utils.MemoryStream.Abstract;
 using Soenneker.Dictionaries.Singletons;
@@ -16,7 +17,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Net.Http;
 using System.Net.Security;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,6 +26,8 @@ namespace Soenneker.Cosmos.Client;
 /// <inheritdoc cref="ICosmosClientUtil"/>
 public sealed class CosmosClientUtil : ICosmosClientUtil
 {
+    private static readonly Sha256HashingUtil _sha256 = new();
+
     private readonly ILogger<CosmosClientUtil> _logger;
     private readonly IHttpClientCache _httpClientCache;
     private readonly string _endpoint;
@@ -151,7 +153,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
     private static string GetClientKey(string endpoint, string accountKey)
     {
-        byte[] accountKeyHash = SHA256.HashData(Encoding.UTF8.GetBytes(accountKey));
+        byte[] accountKeyHash = _sha256.Hash(Encoding.UTF8.GetBytes(accountKey));
         return endpoint + '|' + Convert.ToHexString(accountKeyHash);
     }
 
