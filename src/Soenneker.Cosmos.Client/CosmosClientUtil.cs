@@ -32,6 +32,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
     private readonly IHttpClientCache _httpClientCache;
     private readonly string _endpoint;
     private readonly string _accountKey;
+    private readonly string _defaultClientKey;
 
     private readonly SingletonDictionary<CosmosClient, string, string> _clients;
 
@@ -70,6 +71,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
         _endpoint = config.GetValueStrict<string>("Azure:Cosmos:Endpoint");
         _accountKey = config.GetValueStrict<string>("Azure:Cosmos:AccountKey");
+        _defaultClientKey = CreateClientKey(_endpoint, _accountKey);
 
         _serializer = new CosmosSystemTextJsonSerializer(memoryStreamUtil);
 
@@ -142,7 +144,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
     public ValueTask<CosmosClient> Get(CancellationToken cancellationToken = default)
     {
-        return _clients.Get(GetClientKey(_endpoint, _accountKey), _endpoint, _accountKey, cancellationToken);
+        return _clients.Get(_defaultClientKey, _endpoint, _accountKey, cancellationToken);
     }
 
     public ValueTask<CosmosClient> Get(string endpoint, string accountKey,
@@ -151,7 +153,10 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
         return _clients.Get(GetClientKey(endpoint, accountKey), endpoint, accountKey, cancellationToken);
     }
 
-    private static string GetClientKey(string endpoint, string accountKey)
+    private string GetClientKey(string endpoint, string accountKey) =>
+        endpoint == _endpoint && accountKey == _accountKey ? _defaultClientKey : CreateClientKey(endpoint, accountKey);
+
+    private static string CreateClientKey(string endpoint, string accountKey)
     {
         byte[] accountKeyHash = _sha256.Hash(Encoding.UTF8.GetBytes(accountKey));
         return endpoint + '|' + Convert.ToHexString(accountKeyHash);
