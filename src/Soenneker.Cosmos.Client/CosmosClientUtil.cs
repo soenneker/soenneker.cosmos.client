@@ -18,12 +18,12 @@ using System.Collections.Concurrent;
 using System.Net.Http;
 using System.Net.Security;
 using System.Text;
+using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Soenneker.Cosmos.Client;
 
-/// <inheritdoc cref="ICosmosClientUtil"/>
 public sealed class CosmosClientUtil : ICosmosClientUtil
 {
     private static readonly Sha256HashingUtil _sha256 = new();
@@ -158,14 +158,28 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
 
     private static string CreateClientKey(string endpoint, string accountKey)
     {
-        byte[] accountKeyHash = _sha256.Hash(Encoding.UTF8.GetBytes(accountKey));
-        return endpoint + '|' + Convert.ToHexString(accountKeyHash);
+        return string.Concat(endpoint, "|", GetAccountKeyHash(accountKey));
     }
 
-    /// <summary>
-    /// Asynchronously releases resources used by the current instance.
-    /// </summary>
-    /// <returns>A task that represents the asynchronous operation.</returns>
+    private static string GetAccountKeyHash(string accountKey)
+    {
+        int byteCount = Encoding.UTF8.GetByteCount(accountKey);
+        byte[]? rented = null;
+        Span<byte> utf8 = byteCount <= 256 ? stackalloc byte[byteCount] : (rented = ArrayPool<byte>.Shared.Rent(byteCount)).AsSpan(0, byteCount);
+        try
+        {
+            Encoding.UTF8.GetBytes(accountKey, utf8);
+            Span<byte> hash = stackalloc byte[32];
+            _sha256.TryHash(utf8, hash, out _);
+            return Convert.ToHexString(hash);
+        }
+        finally
+        {
+            if (rented is not null)
+                ArrayPool<byte>.Shared.Return(rented, clearArray: true);
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (!_disposed.TrySetTrue())
@@ -177,9 +191,6 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
             await _httpClientCache.Remove(httpKey).NoSync();
     }
 
-    /// <summary>
-    /// Releases resources used by the current instance.
-    /// </summary>
     public void Dispose()
     {
         if (!_disposed.TrySetTrue())
