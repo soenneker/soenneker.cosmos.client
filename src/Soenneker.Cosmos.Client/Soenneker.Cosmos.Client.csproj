@@ -42,10 +42,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Cosmos.Serializer" Version="4.0.2734" />
+        <PackageReference Include="Soenneker.Cosmos.Serializer" Version="4.0.2735" />
         <PackageReference Include="Soenneker.Enums.DeployEnvironment" Version="4.0.242" />
         <PackageReference Include="Soenneker.Extensions.Configuration" Version="4.0.895" />
         <PackageReference Include="Soenneker.Hashing.Sha256" Version="4.0.5" />
-        <PackageReference Include="Soenneker.Utils.HttpClientCache" Version="4.0.2087" />
+        <PackageReference Include="Soenneker.Utils.HttpClientCache" Version="4.0.2088" />
     </ItemGroup>
 </Project>
