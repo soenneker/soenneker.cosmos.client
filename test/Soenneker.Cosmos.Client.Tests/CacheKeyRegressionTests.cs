@@ -9,7 +9,7 @@ namespace Soenneker.Cosmos.Client.Tests;
 public class CacheKeyRegressionTests
 {
     [Test]
-    public async Task AccountKeyDigestPreservesUppercaseSha256ForStackAndPooledBuffers()
+    public async ValueTask AccountKeyDigestPreservesUppercaseSha256ForStackAndPooledBuffers()
     {
         MethodInfo method = typeof(CosmosClientUtil).GetMethod("GetAccountKeyHash", BindingFlags.NonPublic | BindingFlags.Static)!;
         foreach (string key in new[] { "", "test-account-key", new string('界', 500) })
