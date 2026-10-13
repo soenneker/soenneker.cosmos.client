@@ -54,7 +54,7 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
         _logger = logger;
         _httpClientCache = httpClientCache;
 
-        var environment = config.GetValueStrict<string>("Environment");
+        var environment = config.GetStringStrict("Environment");
         _allowBulkExecution = config.GetValue<bool>("Azure:Cosmos:AllowBulkExecution");
         var connectionMode = config.GetValue<string>("Azure:Cosmos:ConnectionMode");
 
@@ -69,8 +69,8 @@ public sealed class CosmosClientUtil : ICosmosClientUtil
         if (_allowInsecureServerCertificate && !isTestEnvironment)
             throw new InvalidOperationException("Insecure Cosmos server certificates can only be enabled in Local or Test environments.");
 
-        _endpoint = config.GetValueStrict<string>("Azure:Cosmos:Endpoint");
-        _accountKey = config.GetValueStrict<string>("Azure:Cosmos:AccountKey");
+        _endpoint = config.GetStringStrict("Azure:Cosmos:Endpoint");
+        _accountKey = config.GetStringStrict("Azure:Cosmos:AccountKey");
         _defaultClientKey = CreateClientKey(_endpoint, _accountKey);
 
         _serializer = new CosmosSystemTextJsonSerializer(memoryStreamUtil);
